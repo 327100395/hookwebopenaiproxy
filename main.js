@@ -220,7 +220,7 @@ if (httpsOptions) {
 function findInMap(map, predicate) {
   for (const [key, value] of map) {
     if (predicate(value, key, map)) {
-      return { key, value }; // 返回找到的键值对对象
+      return value; // 返回找到的键值对对象
     }
   }
   return undefined; // 未找到时返回 undefined
