@@ -170,6 +170,7 @@
         window.lastSentMsgIndex = 0;
         window.isInThinkMode = false;
         window.onAiMessage = (res, isEnd) => {
+            window.sendInterval && clearInterval(window.sendInterval);
             const msgList = extractMsgContent(res);
             console.log('onAiMessage', msgList, isEnd);
 
@@ -535,33 +536,32 @@
         }
         //3 执行刷新上下文
         document.querySelector('[href="/prompts/new_chat"]').click();
-        await delay(100);
+        let loadDom = document.getElementById('cdk-live-announcer-0');
+        loadDom.innerText = '';
+        await delay(500);
         sessionBtn.click();
         console.log('点击设置上下文,触发请求获取prompts记录,hook它返回websocket传递过来的记录');
-        const attrObserver = observeDOM(
-            document.querySelector('.layout-main'),
-            (mutations) => {
-                //点击最后一条消息的重试按钮,触发消息获取
-                //先获取是否是functionCall
-                let msgDoms = document.querySelectorAll('ms-chat-turn');
-                if (msgDoms.length != body.msgSize) {
-                    return;
-                }
-                let endDom = msgDoms[msgDoms.length - 1];
-                attrObserver.disconnect();
-                (async () => {
-                    if (endDom && endDom.querySelector('ms-function-call-chunk')) {
-                        //点击编辑按钮,再点击send按钮
-                        endDom.querySelector('.toggle-edit-button').click();
-                        await delay(100);
-                        endDom.querySelector('[type="submit"]').click();
-                    } else {
-                        endDom?.querySelector('[name="rerun-button"]').click();
-                    }
-                })();
-            },
-            { childList: true }
-        );
+        //在收到ai回复后再清除,避免没点到的情况
+        window.sendInterval && clearInterval(window.sendInterval);
+        window.sendInterval = setInterval(async () => {
+            let msgDoms = document.querySelectorAll('ms-chat-turn');
+            if (!msgDoms?.length || !loadDom.innerText) {
+                return;
+            }
+            let endDom = msgDoms[msgDoms.length - 1];
+            if (endDom && endDom.querySelector('ms-function-call-chunk')) {
+                let btnDom = endDom.querySelector('.toggle-edit-button');
+                if(!btnDom) return
+                console.log('找到 fun call');
+                //点击编辑按钮,再点击send按钮
+                btnDom.click();
+                await delay(200);
+                endDom.querySelector('[type="submit"]').click();
+            } else {
+                console.log('点击重试', endDom?.querySelector('[name="rerun-button"]'));
+                endDom?.querySelector('[name="rerun-button"]').click();
+            }
+        }, 2000)
     };
     // hook xhr
     xhrHook();
